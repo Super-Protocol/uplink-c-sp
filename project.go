@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"storj.io/uplink"
+	"storj.io/uplink/private/testuplink"
 )
 
 // Project provides access to managing buckets.
@@ -20,7 +21,7 @@ type Project struct {
 // uplink_open_project opens project using access grant.
 //
 //export uplink_open_project
-func uplink_open_project(access *C.UplinkAccess) C.UplinkProjectResult {
+func uplink_open_project(access *C.UplinkAccess, MaximumConcurrent *C.int) C.UplinkProjectResult {
 	if access == nil {
 		return C.UplinkProjectResult{
 			error: mallocError(ErrNull.New("access")),
@@ -36,6 +37,11 @@ func uplink_open_project(access *C.UplinkAccess) C.UplinkProjectResult {
 
 	scope := rootScope("")
 	config := uplink.Config{}
+	if MaximumConcurrent != nil {
+		uploadConfig := testuplink.DefaultConcurrentSegmentUploadsConfig()
+		uploadConfig.SchedulerOptions.MaximumConcurrent = int(*MaximumConcurrent)
+		scope.ctx = testuplink.WithConcurrentSegmentUploadsConfig(scope.ctx, uploadConfig)
+	}
 
 	proj, err := config.OpenProject(scope.ctx, acc.Access)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"storj.io/uplink"
+	"storj.io/uplink/private/testuplink"
 )
 
 // uplink_config_request_access_with_passphrase requests satellite for a new access grant using a passhprase.
@@ -51,7 +52,7 @@ func uplink_config_request_access_with_passphrase(config C.UplinkConfig, satelli
 // uplink_config_open_project opens project using access grant.
 //
 //export uplink_config_open_project
-func uplink_config_open_project(config C.UplinkConfig, access *C.UplinkAccess) C.UplinkProjectResult {
+func uplink_config_open_project(config C.UplinkConfig, access *C.UplinkAccess, MaximumConcurrent *C.int) C.UplinkProjectResult {
 	if access == nil {
 		return C.UplinkProjectResult{
 			error: mallocError(ErrNull.New("access")),
@@ -66,6 +67,12 @@ func uplink_config_open_project(config C.UplinkConfig, access *C.UplinkAccess) C
 	}
 
 	scope := rootScope(C.GoString(config.temp_directory))
+
+	if MaximumConcurrent != nil {
+		uploadConfig := testuplink.DefaultConcurrentSegmentUploadsConfig()
+		uploadConfig.SchedulerOptions.MaximumConcurrent = int(*MaximumConcurrent)
+		scope.ctx = testuplink.WithConcurrentSegmentUploadsConfig(scope.ctx, uploadConfig)
+	}
 
 	cfg := uplinkConfig(config)
 	proj, err := cfg.OpenProject(scope.ctx, acc.Access)
